@@ -14,6 +14,18 @@ index 5a6b401..c23b619 100644
 -[step-1]: https://cloud.google.com/php/getting-started/hello-world
 +[step-2]: https://cloud.google.com/php/getting-started/using-structured-data
  
+diff --git a/app.yaml b/app.yaml
+index a53b035..737fecd 100644
+--- a/app.yaml
++++ b/app.yaml
+@@ -3,3 +3,7 @@ vm: true
+ 
+ runtime_config:
+   document_root: web
++
++## Uncomment for Cloud SQL
++# beta_settings:
++#   cloud_sql_instances: "<INSTANCE_CONNECTION_NAME>"
 diff --git a/composer.json b/composer.json
 index 088f870..deb46ea 100644
 --- a/composer.json
@@ -1973,10 +1985,10 @@ index 5526a43..8745f1f 100644
  </phpunit>
 diff --git a/src/DataModel/CloudSql.php b/src/DataModel/CloudSql.php
 new file mode 100644
-index 0000000..cf6b67e
+index 0000000..06d70e1
 --- /dev/null
 +++ b/src/DataModel/CloudSql.php
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,211 @@
 +<?php
 +/*
 + * Copyright 2015 Google Inc. All Rights Reserved.
@@ -2032,7 +2044,18 @@ index 0000000..cf6b67e
 +            return explode(' ', $columnDefinition)[0];
 +        }, $columns);
 +        $columnText = implode(', ', $columns);
-+        $pdo = $this->newConnection();
++
++        try {
++            $pdo = $this->newConnection();
++        } catch (\PDOException $e) {
++            if (false === strpos($e->getMessage(), 'Unknown database')) {
++                throw $e;
++            }
++            // the database doesn't exist - create it!
++            $this->createDatabase();
++            $pdo = $this->newConnection();
++        }
++
 +        $pdo->query("CREATE TABLE IF NOT EXISTS books ($columnText)");
 +    }
 +
@@ -2047,6 +2070,21 @@ index 0000000..cf6b67e
 +        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 +
 +        return $pdo;
++    }
++
++    private function createDatabase()
++    {
++        if (!preg_match('/dbname=([^;]*);.*?$/', $this->dsn, $matches)) {
++            throw new \Exception('no "dbname" found in mysql_dsn');
++        }
++
++        // connect to PDO and create the database
++        $tmpDsn = str_replace($matches[0], '', $this->dsn);
++        $pdo = new PDO($tmpDsn, $this->user, $this->password);
++        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
++
++        // create the database
++        $pdo->query(sprintf('CREATE DATABASE IF NOT EXISTS `%s`;', $matches[1]));
 +    }
 +
 +    /**

@@ -24,15 +24,19 @@ index ead2f61..91cd922 100644
  
 diff --git a/app.yaml b/app.yaml
 deleted file mode 100644
-index a53b035..0000000
+index 737fecd..0000000
 --- a/app.yaml
 +++ /dev/null
-@@ -1,5 +0,0 @@
+@@ -1,9 +0,0 @@
 -runtime: php
 -vm: true
 -
 -runtime_config:
 -  document_root: web
+-
+-## Uncomment for Cloud SQL
+-# beta_settings:
+-#   cloud_sql_instances: "<INSTANCE_CONNECTION_NAME>"
 diff --git a/composer.json b/composer.json
 index 4de964a..fb0e263 100644
 --- a/composer.json

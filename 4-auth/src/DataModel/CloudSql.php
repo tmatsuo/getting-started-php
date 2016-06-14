@@ -53,7 +53,18 @@ class CloudSql implements DataModelInterface
             return explode(' ', $columnDefinition)[0];
         }, $columns);
         $columnText = implode(', ', $columns);
-        $pdo = $this->newConnection();
+
+        try {
+            $pdo = $this->newConnection();
+        } catch (\PDOException $e) {
+            if (false === strpos($e->getMessage(), 'Unknown database')) {
+                throw $e;
+            }
+            // the database doesn't exist - create it!
+            $this->createDatabase();
+            $pdo = $this->newConnection();
+        }
+
         $pdo->query("CREATE TABLE IF NOT EXISTS books ($columnText)");
     }
 
@@ -68,6 +79,21 @@ class CloudSql implements DataModelInterface
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         return $pdo;
+    }
+
+    private function createDatabase()
+    {
+        if (!preg_match('/dbname=([^;]*);.*?$/', $this->dsn, $matches)) {
+            throw new \Exception('no "dbname" found in mysql_dsn');
+        }
+
+        // connect to PDO and create the database
+        $tmpDsn = str_replace($matches[0], '', $this->dsn);
+        $pdo = new PDO($tmpDsn, $this->user, $this->password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        // create the database
+        $pdo->query(sprintf('CREATE DATABASE IF NOT EXISTS `%s`;', $matches[1]));
     }
 
     /**
